@@ -39,29 +39,39 @@ fn init_config() {
 
 }
 
-fn spawn_child(bytes: Vec<u8>) {
+fn spawn_child() {
+
+    let executable_name: &str = &CONFIG.get().unwrap().executable_name;
+    let child = Command::new(executable_name)
+        .spawn();
+
+    match child {
+        Ok(child) => {
+            CHILD.lock().unwrap().replace(child);
+        },
+        Err(_) => {}
+    }
+
+}
+
+fn write_new_child(bytes: Vec<u8>) {
 
     if let Some(child) = CHILD.lock().unwrap().as_mut() {
         child.kill().unwrap();
     }
 
     let executable_name: &str = &CONFIG.get().unwrap().executable_name;
-
     fs::write(executable_name, bytes).unwrap();
 
-    let child = Command::new(executable_name)
-        .spawn()
-        .unwrap();
-
-    CHILD.lock().unwrap().replace(child);
-
 }
+
 
 #[post("/")]
 async fn upload_binary(request: web::Json<Binary>) -> impl Responder {
 
     thread::spawn(move || {
-        spawn_child(request.into_inner().bytes);
+        write_new_child(request.into_inner().bytes);
+        spawn_child();
     });
 
     HttpResponse::Ok()
@@ -73,6 +83,7 @@ async fn upload_binary(request: web::Json<Binary>) -> impl Responder {
 async fn main() -> std::io::Result<()> {
 
     init_config();
+    spawn_child();
 
     HttpServer::new(|| {
         App::new()
