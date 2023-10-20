@@ -89,7 +89,7 @@ async fn main() -> std::io::Result<()> {
         App::new()
             .service(upload_binary)
     })
-    .bind(("127.0.0.1", 8080))?
+    .bind(("127.0.0.1", CONFIG.get().unwrap().port))?
     .run()
     .await
 
